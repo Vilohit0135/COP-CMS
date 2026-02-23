@@ -1,8 +1,12 @@
 import { connectDB } from "../../../../lib/db";
 import DegreeType from "../../../../models/degreeType";
+import { getClerkUserInfo } from "../../../../lib/clerkHelper";
+import { logActivity } from "../../../../lib/activityLogger";
 
 // CREATE
 export async function POST(req) {
+  const { userId, userName, userEmail } = await getClerkUserInfo();
+  
   await connectDB();
   const body = await req.json();
 
@@ -15,6 +19,20 @@ export async function POST(req) {
     slug,
   });
 
+  // Log the create activity
+  if (userId) {
+    await logActivity({
+      userId,
+      userName,
+      userEmail,
+      action: "create",
+      section: "degree-types",
+      itemId: degree._id,
+      itemName: degree.name,
+      details: `Created new degree type: ${degree.name}`,
+    });
+  }
+
   return Response.json(degree);
 }
 
@@ -23,5 +41,6 @@ export async function POST(req) {
 export async function GET() {
   await connectDB()
   const degrees = await DegreeType.find().sort({ order: 1 })
+  
   return Response.json(degrees)
 }

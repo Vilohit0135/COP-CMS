@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
-import { connectDB } from "@/lib/db"
-import Blog from "@/models/blogs"
+import { connectDB } from "../../../../../lib/db"
+import Blog from "../../../../../models/blogs"
+import { getClerkUserInfo } from "../../../../../lib/clerkHelper";
+import { logActivity } from "../../../../../lib/activityLogger";
 
 // ===============================
 // GET SINGLE BLOG
@@ -37,6 +39,8 @@ export async function GET(request, context) {
 // ===============================
 export async function PUT(request, context) {
   try {
+    const { userId, userName, userEmail } = await getClerkUserInfo();
+    
     await connectDB()
 
     const { slug } = await context.params
@@ -53,6 +57,20 @@ export async function PUT(request, context) {
         { message: "Blog not found" },
         { status: 404 }
       )
+    }
+
+    // Log the update activity
+    if (userId) {
+      await logActivity({
+        userId,
+        userName,
+        userEmail,
+        action: "update",
+        section: "blogs",
+        itemId: updatedBlog._id,
+        itemName: updatedBlog.title,
+        details: `Updated blog: ${JSON.stringify(body)}`,
+      });
     }
 
     return NextResponse.json({
@@ -75,6 +93,8 @@ export async function PUT(request, context) {
 // ===============================
 export async function DELETE(request, context) {
   try {
+    const { userId, userName, userEmail } = await getClerkUserInfo();
+    
     await connectDB()
 
     const { slug } = await context.params
@@ -86,6 +106,20 @@ export async function DELETE(request, context) {
         { message: "Blog not found" },
         { status: 404 }
       )
+    }
+
+    // Log the delete activity
+    if (userId) {
+      await logActivity({
+        userId,
+        userName,
+        userEmail,
+        action: "delete",
+        section: "blogs",
+        itemId: deletedBlog._id,
+        itemName: deletedBlog.title,
+        details: `Deleted blog`,
+      });
     }
 
     return NextResponse.json({

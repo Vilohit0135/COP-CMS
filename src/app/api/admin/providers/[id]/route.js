@@ -1,5 +1,7 @@
 import { connectDB } from "../../../../../lib/db"
 import Provider from "../../../../../models/provider"
+import { getClerkUserInfo } from "../../../../../lib/clerkHelper";
+import { logActivity } from "../../../../../lib/activityLogger";
 
 const slugify = (str = "") =>
   str
@@ -27,6 +29,8 @@ export async function GET(req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+  const { userId, userName, userEmail } = await getClerkUserInfo();
+  
   await connectDB()
   const body = await req.json()
 
@@ -42,11 +46,42 @@ export async function PUT(req, { params }) {
     { new: true }
   )
 
+  // Log the update activity
+  if (userId) {
+    await logActivity({
+      userId,
+      userName,
+      userEmail,
+      action: "update",
+      section: "providers",
+      itemId: params.id,
+      itemName: updated.name,
+      details: `Updated provider: ${JSON.stringify(body)}`,
+    });
+  }
+
   return Response.json(updated)
 }
 
 export async function DELETE(req, { params }) {
+  const { userId, userName, userEmail } = await getClerkUserInfo();
+  
   await connectDB()
-  await Provider.findByIdAndDelete(params.id)
+  const deleted = await Provider.findByIdAndDelete(params.id)
+
+  // Log the delete activity
+  if (userId) {
+    await logActivity({
+      userId,
+      userName,
+      userEmail,
+      action: "delete",
+      section: "providers",
+      itemId: params.id,
+      itemName: deleted.name,
+      details: `Deleted provider`,
+    });
+  }
+
   return Response.json({ success: true })
 }

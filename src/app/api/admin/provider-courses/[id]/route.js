@@ -1,5 +1,7 @@
 import { connectDB } from "../../../../../lib/db"
 import ProviderCourse from "../../../../../models/providerCourse"
+import { getClerkUserInfo } from "../../../../../lib/clerkHelper";
+import { logActivity } from "../../../../../lib/activityLogger";
 
 export async function GET(req, { params }) {
   await connectDB()
@@ -12,6 +14,8 @@ export async function GET(req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+  const { userId, userName, userEmail } = await getClerkUserInfo();
+  
   await connectDB()
   const { id } = await params
   const body = await req.json()
@@ -21,7 +25,7 @@ export async function PUT(req, { params }) {
   const updated = await ProviderCourse.findByIdAndUpdate(
     id,
     body,
-    { returnDocument: "after", runValidators: true }
+    { new: true, runValidators: true }
   )
     .populate("degreeTypeId")
     .populate("courseId")
@@ -29,12 +33,43 @@ export async function PUT(req, { params }) {
 
   console.log("[provider-courses PUT] updated:", updated)
 
+  // Log the update activity
+  if (userId) {
+    await logActivity({
+      userId,
+      userName,
+      userEmail,
+      action: "update",
+      section: "provider-courses",
+      itemId: id,
+      itemName: updated.providerName || "Provider Course",
+      details: `Updated provider course: ${JSON.stringify(body)}`,
+    });
+  }
+
   return Response.json(updated)
 }
 
 export async function DELETE(req, { params }) {
+  const { userId, userName, userEmail } = await getClerkUserInfo();
+  
   await connectDB()
   const { id } = await params
-  await ProviderCourse.findByIdAndDelete(id)
+  const deleted = await ProviderCourse.findByIdAndDelete(id)
+
+  // Log the delete activity
+  if (userId) {
+    await logActivity({
+      userId,
+      userName,
+      userEmail,
+      action: "delete",
+      section: "provider-courses",
+      itemId: id,
+      itemName: deleted.providerName || "Provider Course",
+      details: `Deleted provider course`,
+    });
+  }
+
   return Response.json({ success: true })
 }

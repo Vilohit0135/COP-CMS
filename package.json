@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.38.1",
+    "@tiptap/react": "^3.20.0",
+    "@tiptap/starter-kit": "^3.20.0",
     "lucide-react": "^0.575.0",
     "mongoose": "^9.2.1",
     "next": "16.1.6",
