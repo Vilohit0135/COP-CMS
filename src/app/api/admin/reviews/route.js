@@ -1,5 +1,6 @@
 import { connectDB } from "../../../../lib/db";
 import Review from "../../../../models/review";
+import Provider from "../../../../models/provider";
 import { getClerkUserInfo } from "../../../../lib/clerkHelper";
 import { logActivity } from "../../../../lib/activityLogger";
 

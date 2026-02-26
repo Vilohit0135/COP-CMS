@@ -2,7 +2,7 @@ import { connectDB } from "../../../../lib/db";
 import Course from "../../../../models/course"
 import { getClerkUserInfo } from "../../../../lib/clerkHelper";
 import { logActivity } from "../../../../lib/activityLogger";
-
+import DegreeType from "../../../../models/degreeType"
 // CREATE
 export async function POST(req) {
   const { userId, userName, userEmail } = await getClerkUserInfo();

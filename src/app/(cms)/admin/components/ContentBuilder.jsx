@@ -83,55 +83,57 @@ export default function ContentBuilder({ form, setForm }) {
         {form.content.map((block, index) => (
           <div
             key={index}
-            className="relative border-2 border-slate-200 rounded-xl p-4 bg-slate-50 hover:border-slate-300 transition-colors"
+            className="border-2 border-slate-200 rounded-xl overflow-hidden bg-white hover:border-slate-300 transition-colors"
           >
-            {/* Block type label */}
-            <div className="flex items-center justify-between mb-3">
+            {/* Block Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b-2 border-slate-200">
               <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                {block.type === "text" ? "📝 Text Block" : "🖼️ Image Block"}
+                📋 {block.type === "text" ? "Text Block" : "Image Block"}
               </span>
-
               <button
                 type="button"
                 onClick={() => removeBlock(index)}
-                className="text-xs text-red-500 hover:text-red-700 font-semibold px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                className="text-sm text-red-500 hover:text-red-700 font-semibold px-3 py-1 rounded hover:bg-red-50 transition-colors"
               >
                 Remove
               </button>
             </div>
 
-            {/* TEXT BLOCK */}
-            {block.type === "text" && (
-              <TextBlock
-                value={block.value}
-                onChange={(val) => updateBlock(index, val)}
-              />
-            )}
-
-            {/* IMAGE BLOCK */}
-            {block.type === "image" && (
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Paste image URL here, e.g. https://example.com/photo.jpg"
+            {/* Block Content */}
+            <div className="p-4">
+              {/* TEXT BLOCK */}
+              {block.type === "text" && (
+                <TextBlock
                   value={block.value}
-                  onChange={(e) => updateBlock(index, e.target.value)}
-                  className={inp}
+                  onChange={(val) => updateBlock(index, val)}
                 />
+              )}
 
-                {block.value ? (
-                  <img
-                    src={block.value}
-                    alt="Preview"
-                    className="rounded-lg max-h-60 object-cover border-2 border-slate-200"
+              {/* IMAGE BLOCK */}
+              {block.type === "image" && (
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Paste image URL here, e.g. https://example.com/photo.jpg"
+                    value={block.value}
+                    onChange={(e) => updateBlock(index, e.target.value)}
+                    className={inp}
                   />
-                ) : (
-                  <div className="flex items-center justify-center h-24 rounded-lg border-2 border-dashed border-slate-300 bg-white text-slate-400 text-xs">
-                    Image preview will appear here
-                  </div>
-                )}
-              </div>
-            )}
+
+                  {block.value ? (
+                    <img
+                      src={block.value}
+                      alt="Preview"
+                      className="rounded-lg max-h-60 object-cover border-2 border-slate-200"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-24 rounded-lg border-2 border-dashed border-slate-300 bg-white text-slate-400 text-xs">
+                      Image preview will appear here
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         ))}
 

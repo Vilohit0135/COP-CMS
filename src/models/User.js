@@ -14,9 +14,27 @@ const userSchema = new mongoose.Schema(
       unique: true,
     },
 
+    role: {
+      type: String,
+      enum: ["admin", "editor", "viewer"],
+      default: "viewer",
+    },
+
+    access: {
+      type: [String],
+      default: [],
+      // Example: ["pages", "blogs", "providers", "users"]
+    },
+
     isActive: {
       type: Boolean,
       default: true,
+    },
+
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+      // Store Clerk user metadata or custom app data
     },
   },
   { timestamps: true }

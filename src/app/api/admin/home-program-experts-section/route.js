@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { connectDB } from "@/lib/db"
 import HomeProgramExpertsSection from "@/models/HomeProgramExpertsSection"
+import { getClerkUserInfo } from "@/lib/clerkHelper"
+import { logActivity } from "@/lib/activityLogger"
 
 // GET Section
 export async function GET() {
@@ -21,6 +23,8 @@ export async function GET() {
 // CREATE or UPDATE Section
 export async function POST(req) {
   try {
+    const { userId, userName, userEmail } = await getClerkUserInfo()
+    
     await connectDB()
 
     const body = await req.json()
@@ -31,8 +35,36 @@ export async function POST(req) {
       section.sectionTitle = body.sectionTitle
       section.experts = body.experts
       await section.save()
+      
+      // Log the update activity
+      if (userId) {
+        await logActivity({
+          userId,
+          userName,
+          userEmail,
+          action: "update",
+          section: "home-program-experts-section",
+          itemId: section._id,
+          itemName: "Program Experts Section",
+          details: `Updated program experts section with ${body.experts.length} experts`,
+        })
+      }
     } else {
       section = await HomeProgramExpertsSection.create(body)
+      
+      // Log the create activity
+      if (userId) {
+        await logActivity({
+          userId,
+          userName,
+          userEmail,
+          action: "create",
+          section: "home-program-experts-section",
+          itemId: section._id,
+          itemName: "Program Experts Section",
+          details: `Created program experts section with ${body.experts.length} experts`,
+        })
+      }
     }
 
     return NextResponse.json({

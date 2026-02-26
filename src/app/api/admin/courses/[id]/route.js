@@ -2,6 +2,7 @@ import { connectDB } from "../../../../../lib/db"
 import Course from "../../../../../models/course"
 import { getClerkUserInfo } from "../../../../../lib/clerkHelper";
 import { logActivity } from "../../../../../lib/activityLogger";
+import DegreeType from "../../../../../models/degreeType"
 
 export async function GET(req, { params }) {
   await connectDB()

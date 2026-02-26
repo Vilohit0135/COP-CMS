@@ -1,127 +1,181 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
 import {
   LayoutDashboard,
   BookOpen,
   GraduationCap,
-  Layers,
-  Building2,
-  Link2,
   Users,
   MessageSquare,
   Star,
   ChevronDown,
+  LogOut,
 } from "lucide-react";
 
 const sidebarItems = [
   {
     name: "Dashboard",
     path: "/admin",
-    icon: <LayoutDashboard size={18} />,
+    icon: <LayoutDashboard size={16} />,
+    section: null, // Dashboard always shows
   },
   {
-    name: "Blogs",
-    path: "/admin/blogs",
-    icon: <BookOpen size={18} />,
+    name: "Pages",
+    path: "/admin/pages",
+    icon: <BookOpen size={16} />,
+    section: "pages",
   },
   {
-     name: "Courses",
-     path: "/admin/courses",
-    icon: <GraduationCap size={18} />,
-  },
-  {
-    name: "Degree Types",
-    path: "/admin/degree-types",
-    icon: <Layers size={18} />,
-  },
-  {
-    name: "Specializations",
-    path: "/admin/specializations",
-    icon: <Layers size={18} />,
-  },
-  {
-    name: "Providers",
-    path: "/admin/providers",
-    icon: <Building2 size={18} />,
-  },
-  {
-    name: "Provider Courses",
-    path: "/admin/provider-courses",
-    icon: <Link2 size={18} />,
+    name: "Create Course",
+    icon: <GraduationCap size={16} />,
+    section: "courses", // Show if user has any course-related access
+    children: [
+      { name: "Degree Type", path: "/admin/degree-types", section: "degree-types" },
+      { name: "Courses", path: "/admin/courses", section: "courses" },
+      { name: "Specialization", path: "/admin/specializations", section: "specializations" },
+      { name: "Providers", path: "/admin/providers", section: "providers" },
+      { name: "Provider Courses", path: "/admin/provider-courses", section: "provider-courses" },
+    ],
   },
   {
     name: "Leads",
     path: "/admin/leads",
-    icon: <MessageSquare size={18} />,
+    icon: <MessageSquare size={16} />,
+    section: "leads",
   },
   {
     name: "Reviews",
     path: "/admin/reviews",
-    icon: <Star size={18} />,
+    icon: <Star size={16} />,
+    section: "reviews",
   },
   {
     name: "Users",
     path: "/admin/users",
-    icon: <Users size={18} />,
+    icon: <Users size={16} />,
+    section: "users",
   },
 ];
 
 export default function AdminSidebar() {
   const pathname = usePathname();
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [userAccess, setUserAccess] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { signOut } = useClerk();
+
+  useEffect(() => {
+    const fetchUserAccess = async () => {
+      try {
+        const res = await fetch("/api/debug/user-info");
+        if (res.ok) {
+          const data = await res.json();
+          setUserAccess(data.access || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch user access:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUserAccess();
+  }, []);
+
+  const handleLogout = async () => {
+    await signOut({ redirectUrl: "/login" });
+  };
+
+  // Filter items based on user access
+  const visibleItems = sidebarItems.filter((item) => {
+    // Dashboard always visible
+    if (item.section === null) return true;
+    // Show if user has access to this section or any of its children
+    if (item.children) {
+      return item.children.some((child) => userAccess.includes(child.section));
+    }
+    return userAccess.includes(item.section);
+  });
+
+  // Filter children based on user access
+  const getVisibleChildren = (children) => {
+    return children.filter((child) => userAccess.includes(child.section));
+  };
 
   return (
-    <aside className="w-64 h-screen bg-white border-r shadow-lg p-2 text-gray-800 border-6 border-gray-200">
-      <h2 className="text-xl font-bold mb-10">COP CMS Admin</h2>
+    <aside className="fixed left-0 top-0 w-60 h-screen overflow-y-auto bg-white border-r-2 border-slate-100 z-40 flex flex-col">
 
-      <nav className="space-y-5">
-        {sidebarItems.map((item) => {
+      {/* ── Logo / Brand ── */}
+      <div className="px-5 py-5 border-b-2 border-slate-100">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
+            <span className="text-white text-xs font-bold">C</span>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-800 leading-none">COP CMS</p>
+            <p className="text-xs text-slate-400 mt-0.5">Admin Panel</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Navigation ── */}
+      <nav className="flex-1 px-3 py-4 space-y-0.5">
+
+        {/* Section label */}
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 px-3 pb-2">
+          Menu
+        </p>
+
+        {visibleItems.map((item) => {
           const isActive =
             pathname === item.path ||
             (item.children &&
               item.children.some((child) => child.path === pathname));
 
+          // ── Dropdown item ──
           if (item.children) {
+            const visibleChildren = getVisibleChildren(item.children);
+            if (visibleChildren.length === 0) return null; // Hide if no visible children
+            
+            const isOpen = openDropdown === item.name;
             return (
               <div key={item.name}>
                 <button
-                  onClick={() =>
-                    setOpenDropdown(
-                      openDropdown === item.name ? null : item.name
-                    )
-                  }
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-gray-800 ${
-                    isActive
-                      ? "bg-gray-100 font-semibold"
-                      : "hover:bg-gray-50"
-                  }`}
+                  onClick={() => setOpenDropdown(isOpen ? null : item.name)}
+                  className={`
+                    w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    ${isActive
+                      ? "bg-slate-800 text-white"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
+                    }
+                  `}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     {item.icon}
-                    {item.name}
+                    <span>{item.name}</span>
                   </div>
                   <ChevronDown
-                    size={16}
-                    className={`transition-transform ${
-                      openDropdown === item.name ? "rotate-180" : ""
-                    }`}
+                    size={14}
+                    className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                   />
                 </button>
 
-                {openDropdown === item.name && (
-                  <div className="ml-6 mt-1 space-y-1">
-                    {item.children.map((child) => (
+                {/* Children */}
+                {isOpen && (
+                  <div className="mt-0.5 ml-4 pl-3 border-l-2 border-slate-100 space-y-0.5 py-1">
+                    {visibleChildren.map((child) => (
                       <Link
                         key={child.path}
                         href={child.path}
-                        className={`block px-3 py-2 rounded-md text-sm ${
-                          pathname === child.path
-                            ? "bg-gray-200 font-medium"
-                            : "hover:bg-gray-100"
-                        }`}
+                        className={`
+                          block px-3 py-2 rounded-lg text-sm transition-colors
+                          ${pathname === child.path
+                            ? "bg-slate-100 text-slate-800 font-semibold"
+                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                          }
+                        `}
                       >
                         {child.name}
                       </Link>
@@ -132,22 +186,38 @@ export default function AdminSidebar() {
             );
           }
 
+          // ── Regular item ──
           return (
             <Link
               key={item.name}
               href={item.path}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-gray-800 ${
-                pathname === item.path
-                  ? "bg-gray-200 font-semibold"
-                  : "hover:bg-gray-100"
-              }`}
+              className={`
+                flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                ${pathname === item.path
+                  ? "bg-slate-800 text-white"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
+                }
+              `}
             >
               {item.icon}
-              {item.name}
+              <span>{item.name}</span>
             </Link>
           );
         })}
       </nav>
+
+      {/* ── Footer ── */}
+      <div className="px-5 py-4 border-t-2 border-slate-100 space-y-3">
+        <p className="text-xs text-slate-400">© 2026 COP CMS</p>
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+        >
+          <LogOut size={16} />
+          <span>Logout</span>
+        </button>
+      </div>
+
     </aside>
   );
 }
