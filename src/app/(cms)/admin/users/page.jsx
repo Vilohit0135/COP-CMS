@@ -63,6 +63,7 @@ export default function UsersPage() {
   // Update access modal
   const [showUpdateAccessModal, setShowUpdateAccessModal] = useState(false);
   const [updateAccessUser, setUpdateAccessUser] = useState(null);
+  const [updateAccessLevel, setUpdateAccessLevel] = useState("viewer"); // "admin" or "viewer"
   const [updateAccessList, setUpdateAccessList] = useState([]);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [updateMessage, setUpdateMessage] = useState({ type: "", text: "" });
@@ -177,6 +178,7 @@ export default function UsersPage() {
       return;
     }
     setUpdateAccessUser(user);
+    setUpdateAccessLevel(user.role === "admin" ? "admin" : "viewer");
     setUpdateAccessList(user.access || []);
     setUpdateMessage({ type: "", text: "" });
     setShowUpdateAccessModal(true);
@@ -195,11 +197,19 @@ export default function UsersPage() {
     const fetchUrl = `/api/admin/users-list/${updateAccessUser.userId}`;
     console.log("Updating access for user:", updateAccessUser.userId, "URL:", fetchUrl);
 
+    // If admin, grant all sections; if viewer, use selected sections
+    const accessToSend = updateAccessLevel === "admin" 
+      ? ACCESS_OPTIONS.map(opt => opt.id)
+      : updateAccessList;
+
     try {
       const res = await fetch(fetchUrl, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ access: updateAccessList }),
+        body: JSON.stringify({ 
+          access: accessToSend,
+          role: updateAccessLevel === "admin" ? "admin" : "viewer",
+        }),
       });
 
       const data = await res.json();
@@ -216,7 +226,7 @@ export default function UsersPage() {
       setUsers((prev) =>
         prev.map((u) =>
           u.userId === updateAccessUser.userId
-            ? { ...u, access: updateAccessList }
+            ? { ...u, access: accessToSend, role: updateAccessLevel === "admin" ? "admin" : "viewer" }
             : u
         )
       );
@@ -229,6 +239,7 @@ export default function UsersPage() {
       setTimeout(() => {
         setShowUpdateAccessModal(false);
         setUpdateAccessUser(null);
+        setUpdateAccessLevel("viewer");
         setUpdateAccessList([]);
         setUpdateMessage({ type: "", text: "" });
       }, 1500);
@@ -270,6 +281,7 @@ export default function UsersPage() {
         body: JSON.stringify({
           email: inviteEmail,
           access: accessToSend,
+          role: inviteAccessLevel === "admin" ? "admin" : "viewer",
         }),
       });
 
@@ -317,7 +329,7 @@ export default function UsersPage() {
           onClick={() => setShowInviteModal(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
         >
-          + Invite Admin
+          + Invite User
         </button>
       </div>
 
@@ -333,9 +345,24 @@ export default function UsersPage() {
                 key={user.userId}
                 className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition"
               >
-                <div className="font-semibold text-gray-900">{user.userName}</div>
-                <div className="text-xs text-gray-500 mt-1">{user.userEmail}</div>
-                {user.access && user.access.length > 0 && (
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-900">{user.userName}</div>
+                    <div className="text-xs text-gray-500 mt-1">{user.userEmail}</div>
+                  </div>
+                  <div className="ml-2">
+                    {user.role === "admin" ? (
+                      <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-xs font-semibold">
+                        Admin
+                      </span>
+                    ) : (
+                      <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-semibold">
+                        Read-only
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {user.role !== "admin" && user.access && user.access.length > 0 && (
                   <div className="mt-2 text-xs">
                     <p className="text-gray-600 font-medium">Access:</p>
                     <div className="flex flex-wrap gap-1 mt-1">
@@ -348,6 +375,11 @@ export default function UsersPage() {
                         </span>
                       ))}
                     </div>
+                  </div>
+                )}
+                {user.role === "admin" && (
+                  <div className="mt-2 p-2 bg-purple-50 border border-purple-200 rounded text-xs text-purple-700">
+                    ✓ Full access to all sections
                   </div>
                 )}
                 <div className="mt-4 space-y-2">
@@ -540,9 +572,9 @@ export default function UsersPage() {
       {showInviteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <h2 className="text-2xl font-bold mb-4 text-gray-900">Invite Admin</h2>
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">Invite User</h2>
             <p className="text-sm text-gray-600 mb-6">
-              Send an invitation email to a new admin. They will set their password and can then log in.
+              Send an invitation email to a new user. Choose between Admin (full access) or Read-Only (view-only) access.
             </p>
 
             <form onSubmit={handleInviteSubmit} className="space-y-4">
@@ -705,31 +737,84 @@ export default function UsersPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
             <h2 className="text-2xl font-bold mb-4 text-gray-900">Update User Access</h2>
             <p className="text-sm text-gray-600 mb-6">
-              Manage access sections for{" "}
+              Manage access for{" "}
               <span className="font-semibold">{updateAccessUser.userName}</span>
             </p>
 
-            <div>
+            <div className="mb-6">
               <label className="block text-sm font-semibold text-gray-900 mb-3">
-                Select Sections
+                Access Level
               </label>
-              <div className="space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200 max-h-64 overflow-y-auto">
-                {ACCESS_OPTIONS.map((option) => (
-                  <label
-                    key={option.id}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={updateAccessList.includes(option.id)}
-                      onChange={() => handleAccessToggleForUpdate(option.id)}
-                      className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-2 focus:ring-amber-500"
-                    />
-                    <span className="text-sm text-gray-700">{option.label}</span>
-                  </label>
-                ))}
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50" style={{borderColor: updateAccessLevel === "admin" ? "#7c3aed" : "#d1d5db"}}>
+                  <input
+                    type="radio"
+                    name="accessLevel"
+                    value="admin"
+                    checked={updateAccessLevel === "admin"}
+                    onChange={(e) => {
+                      setUpdateAccessLevel(e.target.value);
+                      setUpdateAccessList(ACCESS_OPTIONS.map(opt => opt.id));
+                    }}
+                    className="w-4 h-4 rounded border-gray-300 text-purple-600"
+                  />
+                  <div>
+                    <div className="font-semibold text-gray-900">Admin</div>
+                    <div className="text-xs text-gray-600">Full access to edit and manage all sections</div>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50" style={{borderColor: updateAccessLevel === "viewer" ? "#3b82f6" : "#d1d5db"}}>
+                  <input
+                    type="radio"
+                    name="accessLevel"
+                    value="viewer"
+                    checked={updateAccessLevel === "viewer"}
+                    onChange={(e) => {
+                      setUpdateAccessLevel(e.target.value);
+                      setUpdateAccessList([]);
+                    }}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                  />
+                  <div>
+                    <div className="font-semibold text-gray-900">Read-Only</div>
+                    <div className="text-xs text-gray-600">Can view activity but cannot edit anything</div>
+                  </div>
+                </label>
               </div>
             </div>
+
+            {updateAccessLevel === "viewer" && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-3">
+                  Select Sections to View
+                </label>
+                <div className="space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200 max-h-64 overflow-y-auto">
+                  {ACCESS_OPTIONS.map((option) => (
+                    <label
+                      key={option.id}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={updateAccessList.includes(option.id)}
+                        onChange={() => handleAccessToggleForUpdate(option.id)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {updateAccessLevel === "admin" && (
+              <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg mb-4">
+                <p className="text-sm text-purple-700">
+                  ✓ Admin will have full access to all sections and can edit everything
+                </p>
+              </div>
+            )}
 
             {updateMessage.text && (
               <div
@@ -749,6 +834,7 @@ export default function UsersPage() {
                 onClick={() => {
                   setShowUpdateAccessModal(false);
                   setUpdateAccessUser(null);
+                  setUpdateAccessLevel("viewer");
                   setUpdateAccessList([]);
                   setUpdateMessage({ type: "", text: "" });
                 }}
