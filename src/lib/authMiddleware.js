@@ -17,6 +17,7 @@ export const ROUTE_SECTION_MAP = {
   "/api/admin/leads": "leads",
   "/api/admin/reviews": "reviews",
   "/api/admin/users": "users",
+  "/api/admin/users-list": "users",
   "/api/admin/activities": "activities",
   "/api/admin/home-hero-section": "home-hero-section",
   "/api/admin/home-industry-experts-section": "home-industry-experts-section",

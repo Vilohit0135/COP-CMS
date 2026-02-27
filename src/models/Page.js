@@ -63,8 +63,10 @@ const pageSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
     },
+    
     description: String,
     sections: [sectionSchema],
+
     isPublished: {
       type: Boolean,
       default: false,

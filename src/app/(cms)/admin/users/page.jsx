@@ -30,7 +30,9 @@ const ACCESS_OPTIONS = [
   { id: "pages", label: "Pages" },
   { id: "providers", label: "Providers" },
   { id: "courses", label: "Courses" },
+  { id: "provider-courses", label: "Provider Courses" },
   { id: "specializations", label: "Specializations" },
+  { id: "degree-types", label: "Degree Types" },
   { id: "leads", label: "Leads" },
   { id: "reviews", label: "Reviews" },
   { id: "users", label: "Users Management" },
@@ -52,6 +54,18 @@ export default function UsersPage() {
   const [inviteAccess, setInviteAccess] = useState([]);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteMessage, setInviteMessage] = useState({ type: "", text: "" });
+
+  // Delete user modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteUserData, setDeleteUserData] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Update access modal
+  const [showUpdateAccessModal, setShowUpdateAccessModal] = useState(false);
+  const [updateAccessUser, setUpdateAccessUser] = useState(null);
+  const [updateAccessList, setUpdateAccessList] = useState([]);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState({ type: "", text: "" });
 
   const itemsPerPage = 20;
 
@@ -117,6 +131,115 @@ export default function UsersPage() {
         ? prev.filter((id) => id !== accessId)
         : [...prev, accessId]
     );
+  };
+
+  const handleAccessToggleForUpdate = (accessId) => {
+    setUpdateAccessList((prev) =>
+      prev.includes(accessId)
+        ? prev.filter((id) => id !== accessId)
+        : [...prev, accessId]
+    );
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteUserData) return;
+    setDeleteLoading(true);
+
+    try {
+      const res = await fetch(`/api/admin/users-list/${deleteUserData.userId}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data?.error || "Failed to delete user");
+        setDeleteLoading(false);
+        return;
+      }
+
+      setUsers((prev) => prev.filter((u) => u.userId !== deleteUserData.userId));
+      setShowDeleteModal(false);
+      setDeleteUserData(null);
+      alert(data.message);
+    } catch (err) {
+      alert("Network error. Please try again.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleOpenUpdateAccessModal = (user) => {
+    console.log("Opening update modal for user:", user);
+    if (!user || !user.userId) {
+      console.error("User object missing userId:", user);
+      alert("Error: User ID not found. Please try again.");
+      return;
+    }
+    setUpdateAccessUser(user);
+    setUpdateAccessList(user.access || []);
+    setUpdateMessage({ type: "", text: "" });
+    setShowUpdateAccessModal(true);
+  };
+
+  const handleUpdateAccess = async () => {
+    if (!updateAccessUser || !updateAccessUser.userId) {
+      setUpdateMessage({
+        type: "error",
+        text: "User ID is missing. Please close and try again.",
+      });
+      return;
+    }
+    setUpdateLoading(true);
+    
+    const fetchUrl = `/api/admin/users-list/${updateAccessUser.userId}`;
+    console.log("Updating access for user:", updateAccessUser.userId, "URL:", fetchUrl);
+
+    try {
+      const res = await fetch(fetchUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ access: updateAccessList }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setUpdateMessage({
+          type: "error",
+          text: data?.error || "Failed to update user access",
+        });
+        setUpdateLoading(false);
+        return;
+      }
+
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.userId === updateAccessUser.userId
+            ? { ...u, access: updateAccessList }
+            : u
+        )
+      );
+
+      setUpdateMessage({
+        type: "success",
+        text: "User access updated successfully!",
+      });
+
+      setTimeout(() => {
+        setShowUpdateAccessModal(false);
+        setUpdateAccessUser(null);
+        setUpdateAccessList([]);
+        setUpdateMessage({ type: "", text: "" });
+      }, 1500);
+    } catch (err) {
+      setUpdateMessage({
+        type: "error",
+        text: "Network error. Please try again.",
+      });
+    } finally {
+      setUpdateLoading(false);
+    }
   };
 
   const handleInviteSubmit = async (e) => {
@@ -212,12 +335,44 @@ export default function UsersPage() {
               >
                 <div className="font-semibold text-gray-900">{user.userName}</div>
                 <div className="text-xs text-gray-500 mt-1">{user.userEmail}</div>
-                <button
-                  onClick={() => setFilterUserId(user.userId)}
-                  className="mt-3 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
-                >
-                  View Activity
-                </button>
+                {user.access && user.access.length > 0 && (
+                  <div className="mt-2 text-xs">
+                    <p className="text-gray-600 font-medium">Access:</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {user.access.map((acc) => (
+                        <span
+                          key={acc}
+                          className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs"
+                        >
+                          {acc}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="mt-4 space-y-2">
+                  <button
+                    onClick={() => setFilterUserId(user.userId)}
+                    className="w-full text-xs bg-blue-100 text-blue-700 px-2 py-1.5 rounded hover:bg-blue-200 font-medium"
+                  >
+                    View Activity
+                  </button>
+                  <button
+                    onClick={() => handleOpenUpdateAccessModal(user)}
+                    className="w-full text-xs bg-amber-100 text-amber-700 px-2 py-1.5 rounded hover:bg-amber-200 font-medium"
+                  >
+                    Update Access
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDeleteUserData(user);
+                      setShowDeleteModal(true);
+                    }}
+                    className="w-full text-xs bg-red-100 text-red-700 px-2 py-1.5 rounded hover:bg-red-200 font-medium"
+                  >
+                    Delete User
+                  </button>
+                </div>
               </div>
             ))
           ) : (
@@ -477,7 +632,7 @@ export default function UsersPage() {
                   onClick={() => {
                     setShowInviteModal(false);
                     setInviteEmail("");
-                    setInviteRole("viewer");
+                    setInviteAccessLevel("viewer");
                     setInviteAccess([]);
                     setInviteMessage({ type: "", text: "" });
                   }}
@@ -494,6 +649,123 @@ export default function UsersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================================ */}
+      {/* Delete User Modal */}
+      {/* ================================ */}
+      {showDeleteModal && deleteUserData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">Delete User</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">{deleteUserData.userName}</span> ({deleteUserData.userEmail})? This
+              action cannot be undone.
+            </p>
+
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-6">
+              <p className="text-sm text-red-700">
+                ⚠️ This will permanently delete the user account and all associated data.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteUserData(null);
+                }}
+                disabled={deleteLoading}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteUser}
+                disabled={deleteLoading}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-60 font-medium transition"
+              >
+                {deleteLoading ? "Deleting..." : "Delete User"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================================ */}
+      {/* Update User Access Modal */}
+      {/* ================================ */}
+      {showUpdateAccessModal && updateAccessUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">Update User Access</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Manage access sections for{" "}
+              <span className="font-semibold">{updateAccessUser.userName}</span>
+            </p>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-3">
+                Select Sections
+              </label>
+              <div className="space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200 max-h-64 overflow-y-auto">
+                {ACCESS_OPTIONS.map((option) => (
+                  <label
+                    key={option.id}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={updateAccessList.includes(option.id)}
+                      onChange={() => handleAccessToggleForUpdate(option.id)}
+                      className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-2 focus:ring-amber-500"
+                    />
+                    <span className="text-sm text-gray-700">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {updateMessage.text && (
+              <div
+                className={`p-3 rounded-lg text-sm font-medium mt-4 ${
+                  updateMessage.type === "success"
+                    ? "bg-green-50 text-green-700 border border-green-200"
+                    : "bg-red-50 text-red-700 border border-red-200"
+                }`}
+              >
+                {updateMessage.text}
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUpdateAccessModal(false);
+                  setUpdateAccessUser(null);
+                  setUpdateAccessList([]);
+                  setUpdateMessage({ type: "", text: "" });
+                }}
+                disabled={updateLoading}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleUpdateAccess}
+                disabled={updateLoading}
+                className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-60 font-medium transition"
+              >
+                {updateLoading ? "Updating..." : "Update Access"}
+              </button>
+            </div>
           </div>
         </div>
       )}
