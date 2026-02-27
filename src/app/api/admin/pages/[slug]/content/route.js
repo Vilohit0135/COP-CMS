@@ -11,9 +11,22 @@ export async function GET(req, { params }) {
     const { slug } = await params;
 
     // Fetch all content for this page
-    const contentItems = await PageContent.find({ pageSlug: slug }).sort({
-      sectionIndex: 1,
+    const page = await Page.findOne({ slug }).lean();
+    const rawItems = await PageContent.find({ pageSlug: slug }).sort({
+      sectionApiId: 1,
       itemIndex: 1,
+    });
+
+    // Backfill sectionApiId when missing (old records using sectionIndex)
+    const contentItems = rawItems.map((item) => {
+      if (!item.sectionApiId && typeof item.sectionIndex === "number" && page) {
+        const sec = page.sections[item.sectionIndex];
+        if (sec && sec.apiIdentifier) {
+          item = item.toObject();
+          item.sectionApiId = sec.apiIdentifier;
+        }
+      }
+      return item;
     });
 
     return Response.json(contentItems);
@@ -37,7 +50,7 @@ export async function POST(req, { params }) {
     }
 
     const body = await req.json();
-    const { sectionIndex, itemIndex = 0, values } = body;
+    let { sectionApiId, itemIndex = 0, values, originalItemIndex, sectionIndex } = body;
 
     // Validate page exists
     const page = await Page.findOne({ slug });
@@ -45,21 +58,42 @@ export async function POST(req, { params }) {
       return Response.json({ error: "Page not found" }, { status: 404 });
     }
 
-    // Check if content already exists
-    let content = await PageContent.findOne({
-      pageSlug: slug,
-      sectionIndex,
-      itemIndex,
-    });
+    // if sectionApiId not provided but sectionIndex is, convert using page data
+    if (!sectionApiId && typeof sectionIndex !== "undefined" && page) {
+      const sec = page.sections[sectionIndex];
+      if (sec && sec.apiIdentifier) sectionApiId = sec.apiIdentifier;
+    }
+
+    // Determine existing content record
+    let content = null;
+    if (originalItemIndex !== undefined && originalItemIndex !== itemIndex) {
+      // editing an existing item but changing its order
+      content = await PageContent.findOne({
+        pageSlug: slug,
+        sectionApiId,
+        itemIndex: originalItemIndex,
+      });
+    }
+    if (!content) {
+      content = await PageContent.findOne({
+        pageSlug: slug,
+        sectionApiId,
+        itemIndex,
+      });
+    }
 
     let action = "create";
     if (content) {
       content.values = values;
+      // update index if it's been changed
+      if (originalItemIndex !== undefined && originalItemIndex !== itemIndex) {
+        content.itemIndex = itemIndex;
+      }
       action = "update";
     } else {
       content = new PageContent({
         pageSlug: slug,
-        sectionIndex,
+        sectionApiId,
         itemIndex,
         values,
       });
@@ -74,8 +108,8 @@ export async function POST(req, { params }) {
       userEmail: user.primaryEmailAddress?.emailAddress,
       section: "page-content",
       action,
-      description: `${action}d content for page "${page.title}" section ${sectionIndex}`,
-      reference: `${slug}-${sectionIndex}-${itemIndex}`,
+      description: `${action}d content for page "${page.title}" section ${sectionApiId}`,
+      reference: `${slug}-${sectionApiId}-${itemIndex}`,
     });
 
     return Response.json(content, { status: 201 });
@@ -98,7 +132,7 @@ export async function DELETE(req, { params }) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { sectionIndex, itemIndex = 0 } = await req.json();
+    let { sectionApiId, itemIndex = 0, sectionIndex } = await req.json();
 
     // Validate page exists
     const page = await Page.findOne({ slug });
@@ -106,12 +140,16 @@ export async function DELETE(req, { params }) {
       return Response.json({ error: "Page not found" }, { status: 404 });
     }
 
+    if (!sectionApiId && typeof sectionIndex !== "undefined" && page) {
+      const sec = page.sections[sectionIndex];
+      if (sec && sec.apiIdentifier) sectionApiId = sec.apiIdentifier;
+    }
+
     const result = await PageContent.deleteOne({
       pageSlug: slug,
-      sectionIndex,
+      sectionApiId,
       itemIndex,
     });
-
     if (result.deletedCount === 0) {
       return Response.json(
         { error: "Content not found" },
@@ -126,8 +164,8 @@ export async function DELETE(req, { params }) {
       userEmail: user.primaryEmailAddress?.emailAddress,
       section: "page-content",
       action: "delete",
-      description: `deleted content for page "${page.title}" section ${sectionIndex}`,
-      reference: `${slug}-${sectionIndex}-${itemIndex}`,
+      description: `deleted content for page "${page.title}" section ${sectionApiId}`,
+      reference: `${slug}-${sectionApiId}-${itemIndex}`,
     });
 
     return Response.json({ success: true });

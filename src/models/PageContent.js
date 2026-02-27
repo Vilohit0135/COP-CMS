@@ -7,9 +7,11 @@ const pageContentSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    sectionIndex: {
-      type: Number,
+    // apiIdentifier of the section from the Page model
+    sectionApiId: {
+      type: String,
       required: true,
+      index: true,
     },
     itemIndex: {
       type: Number,
@@ -26,7 +28,7 @@ const pageContentSchema = new mongoose.Schema(
 // Compound index for unique content per page/section/item
 pageContentSchema.index({
   pageSlug: 1,
-  sectionIndex: 1,
+  sectionApiId: 1,
   itemIndex: 1,
 });
 

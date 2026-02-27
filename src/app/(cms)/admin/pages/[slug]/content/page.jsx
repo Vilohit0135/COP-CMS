@@ -13,7 +13,8 @@ export default function PageContentPage() {
   const [content, setContent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeSection, setActiveSection] = useState(0);
+  // activeSection holds the apiIdentifier string of the selected section
+  const [activeSection, setActiveSection] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
 
@@ -27,6 +28,11 @@ export default function PageContentPage() {
       const pageRes = await fetch(`/api/admin/pages/${slug}`);
       const pageData = await pageRes.json();
       setPage(pageData);
+
+      // set default activeSection to first section if not already set
+      if (pageData.sections && pageData.sections.length > 0) {
+        setActiveSection((prev) => prev || pageData.sections[0].apiIdentifier);
+      }
 
       const contentRes = await fetch(`/api/admin/pages/${slug}/content`);
       const contentData = await contentRes.json();
@@ -46,32 +52,33 @@ export default function PageContentPage() {
     loadData();
     }, [slug]);
 
-  const getContentForSection = (sectionIndex, itemIndex = 0) => {
-    return content.find(
-      (c) => c.sectionIndex === sectionIndex && c.itemIndex === itemIndex
-    );
-  };
 
-  const saveContent = async (sectionIndex, itemIndex = 0, values) => {
+  const saveContent = async (sectionApiId, itemIndex = 0, values, originalItemIndex) => {
     try {
       setSaving(true);
+      const payload = {
+        sectionApiId,
+        itemIndex,
+        values,
+      };
+      if (originalItemIndex !== undefined) payload.originalItemIndex = originalItemIndex;
       const res = await fetch(`/api/admin/pages/${slug}/content`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sectionIndex,
-          itemIndex,
-          values,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         const savedContent = await res.json();
         setContent((prev) => {
-          const filtered = prev.filter(
-            (c) =>
-              !(c.sectionIndex === sectionIndex && c.itemIndex === itemIndex)
-          );
+          const filtered = prev.filter((c) => {
+            // remove old entry either by original index or current one
+            const matchSection = c.sectionApiId === sectionApiId;
+            const matchIndex = originalItemIndex !== undefined
+              ? c.itemIndex === originalItemIndex
+              : c.itemIndex === itemIndex;
+            return !(matchSection && matchIndex);
+          });
           return [...filtered, savedContent];
         });
         setSuccessMessage("✓ Content saved successfully");
@@ -87,21 +94,20 @@ export default function PageContentPage() {
     }
   };
 
-  const deleteContent = async (sectionIndex, itemIndex = 0) => {
+  const deleteContent = async (sectionApiId, itemIndex = 0) => {
     if (!confirm("Delete this content?")) return;
 
     try {
       const res = await fetch(`/api/admin/pages/${slug}/content`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sectionIndex, itemIndex }),
+        body: JSON.stringify({ sectionApiId, itemIndex }),
       });
 
       if (res.ok) {
         setContent((prev) =>
           prev.filter(
-            (c) =>
-              !(c.sectionIndex === sectionIndex && c.itemIndex === itemIndex)
+            (c) => !(c.sectionApiId === sectionApiId && c.itemIndex === itemIndex)
           )
         );
         alert("Content deleted successfully");
@@ -158,11 +164,11 @@ export default function PageContentPage() {
           </label>
           <select
             value={activeSection}
-            onChange={(e) => setActiveSection(Number(e.target.value))}
+            onChange={(e) => setActiveSection(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 bg-white"
           >
-            {page.sections.map((section, idx) => (
-              <option key={idx} value={idx}>
+            {page.sections.map((section) => (
+              <option key={section.apiIdentifier} value={section.apiIdentifier}>
                 {section.title}
               </option>
             ))}
@@ -170,11 +176,11 @@ export default function PageContentPage() {
         </div>
 
         {/* Content Editor */}
-        {page.sections[activeSection] && (
+        {page.sections.find((s) => s.apiIdentifier === activeSection) && (
           <SectionContentEditor
-            section={page.sections[activeSection]}
-            sectionIndex={activeSection}
-            content={content.filter((c) => c.sectionIndex === activeSection)}
+            section={page.sections.find((s) => s.apiIdentifier === activeSection)}
+            sectionApiId={activeSection}
+            content={content.filter((c) => c.sectionApiId === activeSection)}
             onSave={saveContent}
             onDelete={deleteContent}
             saving={saving}
@@ -187,13 +193,14 @@ export default function PageContentPage() {
 
 function SectionContentEditor({
   section,
-  sectionIndex,
+  sectionApiId,
   content,
   onSave,
   onDelete,
   saving,
 }) {
     const [itemIndex, setItemIndex] = useState(0);
+    const [originalIndex, setOriginalIndex] = useState(0);
     const [formValues, setFormValues] = useState(() => {
     const firstItem = content.find(c => c.itemIndex === 0);
 
@@ -206,6 +213,17 @@ function SectionContentEditor({
     });
 
   const currentContent = content.find((c) => c.itemIndex === itemIndex);
+
+  // when the active content record changes, remember its original index
+  useEffect(() => {
+    if (currentContent) {
+      setOriginalIndex(currentContent.itemIndex);
+    } else {
+      setOriginalIndex(itemIndex);
+    }
+    // we intentionally do not include itemIndex in deps, so that manual edits
+    // to the index field do not overwrite the original value
+  }, [currentContent]);
 
   // Initialize form values on mount and when itemIndex or content changes
 //   useEffect(() => {
@@ -230,28 +248,21 @@ function SectionContentEditor({
   };
 
   const handleSave = () => {
-    onSave(sectionIndex, itemIndex, formValues);
+    onSave(sectionApiId, itemIndex, formValues, originalIndex);
   };
 
   const handleAddItem = () => {
-    const sectionContent = content.filter(
-        (c) => c.sectionIndex === sectionIndex
-    );
-
-    const maxIndex = Math.max(
-        -1,
-        ...sectionContent.map((c) => c.itemIndex)
-    );
-
+    // content prop already contains only this section
+    const maxIndex = Math.max(-1, ...content.map((c) => c.itemIndex));
     const newIndex = maxIndex + 1;
     setItemIndex(newIndex);
+    setOriginalIndex(undefined); // mark as new content
 
-    // Initialize empty form values for new item
+    // initialize empty form values for new item
     const initial = {};
     section.fields.forEach((field) => {
-        initial[field.name] = "";
+      initial[field.name] = "";
     });
-    
     setFormValues(initial);
   };
 
@@ -269,7 +280,9 @@ function SectionContentEditor({
       {content.length > 0 && (
         <div className="mb-6">
           <div className="flex gap-2 mb-4 pb-2 border-b">
-            {content.map((item) => (
+            {[...content]
+              .sort((a, b) => a.itemIndex - b.itemIndex)
+              .map((item) => (
               <div key={item.itemIndex} className="flex items-center gap-2">
                 <button
                   onClick={() => {
@@ -297,7 +310,7 @@ function SectionContentEditor({
                   Item {item.itemIndex + 1}
                 </button>
                 <button
-                  onClick={() => onDelete(sectionIndex, item.itemIndex)}
+                  onClick={() => onDelete(sectionApiId, item.itemIndex)}
                   className="text-red-600 hover:text-red-700 text-sm font-medium"
                 >
                   ✕
@@ -315,6 +328,22 @@ function SectionContentEditor({
       )}
 
       {/* Form Fields */}
+      {/* Order control */}
+      <div className="mb-6">
+        <label className="block text-sm font-semibold text-gray-900 mb-2">
+          Item Order
+        </label>
+        <input
+          type="number"
+          value={itemIndex}
+          onChange={(e) => setItemIndex(Number(e.target.value))}
+          className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-800"
+          min="0"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Change this number to reorder items within the section. Be sure to press Save.
+        </p>
+      </div>
       <div className="space-y-6 mb-8">
         {section.fields.map((field) => (
           <FormField
