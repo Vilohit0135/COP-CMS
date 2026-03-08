@@ -63,25 +63,25 @@ const sidebarItems = [
 export default function AdminSidebar() {
   const pathname = usePathname();
   const [openDropdown, setOpenDropdown] = useState(null);
-  const [userAccess, setUserAccess] = useState([]);
+  const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const { signOut } = useClerk();
 
   useEffect(() => {
-    const fetchUserAccess = async () => {
+    const fetchUserData = async () => {
       try {
         const res = await fetch("/api/debug/user-info");
         if (res.ok) {
           const data = await res.json();
-          setUserAccess(data.access || []);
+          setUserData(data);
         }
       } catch (err) {
-        console.error("Failed to fetch user access:", err);
+        console.error("Failed to fetch user info:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchUserAccess();
+    fetchUserData();
   }, []);
 
   const handleLogout = async () => {
@@ -92,16 +92,21 @@ export default function AdminSidebar() {
   const visibleItems = sidebarItems.filter((item) => {
     // Dashboard always visible
     if (item.section === null) return true;
+
+    // If admin, show all
+    if (userData?.role === "admin") return true;
+
     // Show if user has access to this section or any of its children
     if (item.children) {
-      return item.children.some((child) => userAccess.includes(child.section));
+      return item.children.some((child) => (userData?.access || []).includes(child.section));
     }
-    return userAccess.includes(item.section);
+    return (userData?.access || []).includes(item.section);
   });
 
   // Filter children based on user access
   const getVisibleChildren = (children) => {
-    return children.filter((child) => userAccess.includes(child.section));
+    if (userData?.role === "admin") return children;
+    return children.filter((child) => (userData?.access || []).includes(child.section));
   };
 
   return (
@@ -138,7 +143,7 @@ export default function AdminSidebar() {
           if (item.children) {
             const visibleChildren = getVisibleChildren(item.children);
             if (visibleChildren.length === 0) return null; // Hide if no visible children
-            
+
             const isOpen = openDropdown === item.name;
             return (
               <div key={item.name}>

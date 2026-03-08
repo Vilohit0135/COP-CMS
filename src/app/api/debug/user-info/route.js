@@ -1,45 +1,43 @@
 import { auth } from "@clerk/nextjs/server"
-import { connectDB } from "@/lib/db"
-import User from "@/models/User"
 
 export async function GET(req) {
   try {
     const { userId } = await auth()
 
     if (!userId) {
-      return Response.json(
-        { error: "Not authenticated" },
-        { status: 401 }
-      )
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      })
     }
 
-    await connectDB()
+    // Call the backend API, forwarding cookies so Clerk middleware can validate
+    const backendUrl = process.env.NEXT_PUBLIC_APP_BACKEND_URL || "http://localhost:5000"
+    const res = await fetch(`${backendUrl}/api/debug/user-info`, {
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: req.headers.get("cookie") || "",
+      },
+      credentials: "include",
+    })
 
-    const user = await User.findOne({ clerkId: userId })
-
-    if (!user) {
-      return Response.json(
-        {
-          message: "User not found in database",
-          clerkId: userId,
-        },
-        { status: 404 }
-      )
+    if (!res.ok) {
+      return new Response(JSON.stringify({ error: "Failed to fetch user info from backend" }), {
+        status: res.status,
+        headers: { "Content-Type": "application/json" },
+      })
     }
 
-    return Response.json({
-      clerkId: user.clerkId,
-      email: user.email,
-      role: user.role,
-      access: user.access,
-      isActive: user.isActive,
-      createdAt: user.createdAt,
+    const data = await res.json()
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
     })
   } catch (err) {
-    console.error("Debug error:", err)
-    return Response.json(
-      { error: err.message },
-      { status: 500 }
-    )
+    console.error("Error fetching user info:", err)
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { callApi } from "@/lib/apiClient";
 
 export default function SpecializationTypeSelect({
   value,
@@ -12,8 +13,9 @@ export default function SpecializationTypeSelect({
   useEffect(() => {
     const fetchSpecializationTypes = async () => {
       try {
-        const res = await fetch("/api/admin/specialization-types", {
+        const res = await callApi("/api/admin/specialization-types", {
           cache: "no-store",
+          auth: true,
         });
 
         const data = await res.json();

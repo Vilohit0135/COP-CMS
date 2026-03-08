@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { callApi } from "@/lib/apiClient";
 
 const SECTION_NAMES = {
   leads: "Leads",
@@ -72,8 +73,9 @@ export default function UsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch("/api/admin/users-list", {
+      const res = await callApi("/api/admin/users", {
         cache: "no-store",
+        auth: true,
       });
 
       const data = await res.json();
@@ -97,8 +99,9 @@ export default function UsersPage() {
       params.append("limit", itemsPerPage);
       params.append("skip", (currentPage - 1) * itemsPerPage);
 
-      const res = await fetch(`/api/admin/activities?${params.toString()}`, {
+      const res = await callApi(`/api/admin/activities?${params.toString()}`, {
         cache: "no-store",
+        auth: true,
       });
 
       const data = await res.json();
@@ -124,6 +127,8 @@ export default function UsersPage() {
         };
 
         loadData();
+    // ignore fetchActivities dependency, it's stable in this component
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filterSection, filterUserId, currentPage]);
 
   const handleAccessToggle = (accessId) => {
@@ -147,8 +152,9 @@ export default function UsersPage() {
     setDeleteLoading(true);
 
     try {
-      const res = await fetch(`/api/admin/users-list/${deleteUserData.userId}`, {
+      const res = await callApi(`/api/admin/users/${deleteUserData.userId}`, {
         method: "DELETE",
+        auth: true,
       });
 
       const data = await res.json();
@@ -194,7 +200,7 @@ export default function UsersPage() {
     }
     setUpdateLoading(true);
     
-    const fetchUrl = `/api/admin/users-list/${updateAccessUser.userId}`;
+    const fetchUrl = `/api/admin/users/${updateAccessUser.userId}`;
     console.log("Updating access for user:", updateAccessUser.userId, "URL:", fetchUrl);
 
     // If admin, grant all sections; if viewer, use selected sections
@@ -203,13 +209,13 @@ export default function UsersPage() {
       : updateAccessList;
 
     try {
-      const res = await fetch(fetchUrl, {
+      const res = await callApi(fetchUrl, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        auth: true,
+        body: {
           access: accessToSend,
           role: updateAccessLevel === "admin" ? "admin" : "viewer",
-        }),
+        },
       });
 
       const data = await res.json();
@@ -275,14 +281,13 @@ export default function UsersPage() {
     setInviteLoading(true);
 
     try {
-      const res = await fetch("/api/auth/send-invite", {
+      const res = await callApi("/api/auth/send-invite", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           email: inviteEmail,
           access: accessToSend,
           role: inviteAccessLevel === "admin" ? "admin" : "viewer",
-        }),
+        },
       });
 
       const data = await res.json();

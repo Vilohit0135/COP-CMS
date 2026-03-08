@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { callApi } from "@/lib/apiClient";
 
 export default function DegreeTypesPage() {
   const [degreeTypes, setDegreeTypes] = useState([]);
@@ -31,24 +32,31 @@ export default function DegreeTypesPage() {
   /* ---------------------------------- */
   const fetchDegreeTypes = async () => {
     try {
-      const res = await fetch("/api/admin/degree-types", {
+      const res = await callApi("/api/admin/degree-types", {
         cache: "no-store",
+        auth: true,
       });
 
-      const data = await res.json();
-      setDegreeTypes(data);
+      if (res.ok) {
+        const data = await res.json();
+        setDegreeTypes(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Failed to fetch degree types:", await res.text());
+        setDegreeTypes([]);
+      }
     } catch (err) {
       console.error("Error fetching degree types", err);
+      setDegreeTypes([]);
     }
   };
 
-    useEffect(() => {
+  useEffect(() => {
     const loadData = async () => {
-        await fetchDegreeTypes();
+      await fetchDegreeTypes();
     };
 
     loadData();
-    }, []);
+  }, []);
 
   /* ---------------------------------- */
   /* Create */
@@ -63,10 +71,10 @@ export default function DegreeTypesPage() {
 
     setLoading(true);
 
-    await fetch("/api/admin/degree-types", {
+    await callApi("/api/admin/degree-types", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
+      auth: true,
+      body: formData,
     });
 
     setFormData({
@@ -101,10 +109,10 @@ export default function DegreeTypesPage() {
 
     setLoading(true);
 
-    await fetch(`/api/admin/degree-types/${id}`, {
+    await callApi(`/api/admin/degree-types/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
+      auth: true,
+      body: formData,
     });
 
     setEditingId(null);
@@ -121,8 +129,9 @@ export default function DegreeTypesPage() {
     );
     if (!confirmDelete) return;
 
-    await fetch(`/api/admin/degree-types/${id}`, {
+    await callApi(`/api/admin/degree-types/${id}`, {
       method: "DELETE",
+      auth: true,
     });
 
     fetchDegreeTypes();
@@ -207,11 +216,10 @@ export default function DegreeTypesPage() {
         <button
           type="submit"
           disabled={!formData.name.trim() || loading}
-          className={`px-6 py-2 rounded-md ${
-            formData.name.trim()
-              ? "bg-black text-white"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
+          className={`px-6 py-2 rounded-md ${formData.name.trim()
+            ? "bg-black text-white"
+            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
         >
           {loading ? "Creating..." : "Add Degree Type"}
         </button>
@@ -313,11 +321,10 @@ export default function DegreeTypesPage() {
                       <span className="text-sm font-medium">Active</span>
                     </label>
                   ) : (
-                    <span className={`px-3 py-1 rounded-full text-sm ${
-                      degree.isActive
-                        ? "bg-green-100 text-gray-900"
-                        : "bg-gray-200 text-gray-800"
-                    }`}>
+                    <span className={`px-3 py-1 rounded-full text-sm ${degree.isActive
+                      ? "bg-green-100 text-gray-900"
+                      : "bg-gray-200 text-gray-800"
+                      }`}>
                       {degree.isActive ? "Active" : "Inactive"}
                     </span>
                   )}

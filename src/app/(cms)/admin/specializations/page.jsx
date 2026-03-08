@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { callApi } from "@/lib/apiClient";
 import CourseSelect from "../components/CourseSelect";
 
 export default function SpecializationsPage() {
@@ -31,13 +32,21 @@ export default function SpecializationsPage() {
   /* ---------------------------------- */
   const fetchSpecializations = async () => {
     try {
-      const res = await fetch("/api/admin/specialization", {
+      const res = await callApi("/api/admin/specializations", {
         cache: "no-store",
+        auth: true,
       });
-      const data = await res.json();
-      setSpecializations(data);
+
+      if (res.ok) {
+        const data = await res.json();
+        setSpecializations(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Failed to fetch specializations:", await res.text());
+        setSpecializations([]);
+      }
     } catch (err) {
       console.error("Error fetching specializations", err);
+      setSpecializations([]);
     }
   };
 
@@ -67,10 +76,10 @@ export default function SpecializationsPage() {
 
     setLoading(true);
 
-    await fetch("/api/admin/specialization", {
+    await callApi("/api/admin/specializations", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
+      auth: true,
+      body: formData,
     });
 
     setFormData({
@@ -110,10 +119,10 @@ export default function SpecializationsPage() {
 
     setLoading(true);
 
-    await fetch(`/api/admin/specialization/${id}`, {
+    await callApi(`/api/admin/specializations/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
+      auth: true,
+      body: formData,
     });
 
     setEditingId(null);
@@ -128,8 +137,9 @@ export default function SpecializationsPage() {
     const confirmDelete = confirm("Delete this specialization?");
     if (!confirmDelete) return;
 
-    await fetch(`/api/admin/specialization/${id}`, {
+    await callApi(`/api/admin/specializations/${id}`, {
       method: "DELETE",
+      auth: true,
     });
 
     fetchSpecializations();
@@ -305,11 +315,10 @@ export default function SpecializationsPage() {
                       <span className="text-sm font-medium">Active</span>
                     </label>
                   ) : (
-                    <span className={`px-3 py-1 rounded-full text-sm ${
-                      spec.isActive
-                        ? "bg-green-100 text-gray-900"
-                        : "bg-gray-200 text-gray-800"
-                    }`}>
+                    <span className={`px-3 py-1 rounded-full text-sm ${spec.isActive
+                      ? "bg-green-100 text-gray-900"
+                      : "bg-gray-200 text-gray-800"
+                      }`}>
                       {spec.isActive ? "Active" : "Inactive"}
                     </span>
                   )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { callApi } from "@/lib/apiClient";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -432,10 +433,17 @@ export default function ProvidersPage() {
   const fetchProviders = async () => {
     try {
       setFetchLoading(true);
-      const res = await fetch("/api/admin/providers", { cache: "no-store" });
-      setProviders(await res.json());
+      const res = await callApi("/api/admin/providers", { cache: "no-store", auth: true });
+      if (res.ok) {
+        const data = await res.json();
+        setProviders(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Failed to fetch providers:", await res.text());
+        setProviders([]);
+      }
     } catch (err) {
       console.error(err);
+      setProviders([]);
     } finally {
       setFetchLoading(false);
     }
@@ -447,10 +455,10 @@ export default function ProvidersPage() {
     e.preventDefault();
     if (!form.name.trim()) return alert("name is required!");
     setLoading(true);
-    await fetch("/api/admin/providers", {
+    await callApi("/api/admin/providers", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      auth: true,
+      body: form,
     });
     setForm(EMPTY_FORM);
     setShowForm(false);
@@ -496,10 +504,10 @@ export default function ProvidersPage() {
     e.preventDefault();
     if (!form.name.trim()) return alert("name is required!");
     setLoading(true);
-    await fetch(`/api/admin/providers/${editingId}`, {
+    await callApi(`/api/admin/providers/${editingId}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      auth: true,
+      body: form,
     });
     setEditingId(null);
     setForm(EMPTY_FORM);

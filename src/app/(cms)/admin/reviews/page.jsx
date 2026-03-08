@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-
+import { useEffect, useState } from "react";
+import { callApi } from "@/lib/apiClient";
 export default function ReviewsPage() {
   const [reviews, setReviews] = useState([])
   const [filteredReviews, setFilteredReviews] = useState([])
@@ -39,7 +39,7 @@ export default function ReviewsPage() {
   const fetchReviews = async () => {
     try {
       setLoading(true)
-      const res = await fetch("/api/admin/reviews")
+      const res = await callApi("/api/admin/reviews", { auth: true })
       if (!res.ok) throw new Error("Failed to fetch reviews")
       const data = await res.json()
       setReviews(data)
@@ -52,7 +52,7 @@ export default function ReviewsPage() {
 
   const fetchProviders = async () => {
     try {
-      const res = await fetch("/api/admin/providers")
+      const res = await callApi("/api/admin/providers", { auth: true })
       if (!res.ok) throw new Error("Failed to fetch providers")
       const data = await res.json()
       setProviders(data)
@@ -201,11 +201,10 @@ export default function ReviewsPage() {
                       <td className="px-6 py-4 text-sm">
                         <button
                           onClick={() => toggleReviewStatus(review._id, review.isActive)}
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            review.isActive
+                          className={`px-3 py-1 rounded-full text-xs font-semibold ${review.isActive
                               ? "bg-green-100 text-green-800"
                               : "bg-gray-100 text-gray-800"
-                          }`}
+                            }`}
                         >
                           {review.isActive ? "Active" : "Inactive"}
                         </button>

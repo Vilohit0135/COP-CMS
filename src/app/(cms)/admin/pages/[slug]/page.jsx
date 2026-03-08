@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { callApi } from "@/lib/apiClient";
 
 const FIELD_TYPES = [
   "text",
@@ -49,10 +50,12 @@ export default function EditPagePage({ params: paramsPromise }) {
 
   const fetchPage = async () => {
     try {
-      const res = await fetch(`/api/admin/pages/${params.slug}`);
+      const res = await callApi(`/api/admin/pages/${params.slug}`, {
+        auth: true,
+      });
       if (res.ok) {
         const data = await res.json();
-        
+
         // Migrate old sections that have 'type' but not 'apiIdentifier'
         if (data.sections) {
           data.sections = data.sections.map((section) => {
@@ -65,7 +68,7 @@ export default function EditPagePage({ params: paramsPromise }) {
             return section;
           });
         }
-        
+
         setPage(data);
       } else {
         setError("Page not found");
@@ -80,7 +83,7 @@ export default function EditPagePage({ params: paramsPromise }) {
 
   const handleCreateContentModel = (title, apiIdentifier, description = "") => {
     if (!title || !apiIdentifier) return;
-    
+
     const newSection = {
       _id: new Date().getTime().toString(),
       title,
@@ -89,7 +92,7 @@ export default function EditPagePage({ params: paramsPromise }) {
       fields: [],
       dataInstances: [],
     };
-    
+
     setPage({
       ...page,
       sections: [...page.sections, newSection],
@@ -126,10 +129,10 @@ export default function EditPagePage({ params: paramsPromise }) {
     setError("");
 
     try {
-      const res = await fetch(`/api/admin/pages/${page.slug}`, {
+      const res = await callApi(`/api/admin/pages/${page.slug}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        auth: true,
+        body: {
           title: page.title,
           description: page.description,
           sections: page.sections.map((section) => ({
@@ -147,7 +150,7 @@ export default function EditPagePage({ params: paramsPromise }) {
             dataInstances: section.dataInstances || [],
           })),
           isPublished: page.isPublished,
-        }),
+        },
       });
 
       if (res.ok) {
@@ -282,11 +285,10 @@ export default function EditPagePage({ params: paramsPromise }) {
                       </td>
                       <td className="px-6 py-4">
                         <span
-                          className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                            section.fields.length === 0
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-green-100 text-green-800"
-                          }`}
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${section.fields.length === 0
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-green-100 text-green-800"
+                            }`}
                         >
                           {section.fields.length === 0
                             ? "Input fields need to be added"

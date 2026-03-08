@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import TextBlock from "../../../components/TextBlock"; 
+import TextBlock from "../../../components/TextBlock";
+import { callApi } from "@/lib/apiClient";
 
-export default function PageContentPage() { 
+export default function PageContentPage() {
   const router = useRouter();
-  const params = useParams(); 
+  const params = useParams();
   const slug = params.slug;
 
   const [page, setPage] = useState(null);
@@ -19,13 +20,13 @@ export default function PageContentPage() {
 
 
 
-//   useEffect(() => {
-//     fetchPageAndContent();
-//   }, [slug]);
+  //   useEffect(() => {
+  //     fetchPageAndContent();
+  //   }, [slug]);
 
   const fetchPageAndContent = async () => {
     try {
-      const pageRes = await fetch(`/api/admin/pages/${slug}`);
+      const pageRes = await callApi(`/api/admin/pages/${slug}`, { auth: true });
       const pageData = await pageRes.json();
       setPage(pageData);
 
@@ -34,7 +35,7 @@ export default function PageContentPage() {
         setActiveSection((prev) => prev || pageData.sections[0].apiIdentifier);
       }
 
-      const contentRes = await fetch(`/api/admin/pages/${slug}/content`);
+      const contentRes = await callApi(`/api/admin/pages/${slug}/content`, { auth: true });
       const contentData = await contentRes.json();
       setContent(contentData);
 
@@ -44,13 +45,13 @@ export default function PageContentPage() {
       setLoading(false);
     }
   };
-    useEffect(() => {
+  useEffect(() => {
     const loadData = async () => {
-        await fetchPageAndContent();
+      await fetchPageAndContent();
     };
 
     loadData();
-    }, [slug]);
+  }, [slug]);
 
 
   const saveContent = async (sectionApiId, itemIndex = 0, values, originalItemIndex) => {
@@ -62,10 +63,10 @@ export default function PageContentPage() {
         values,
       };
       if (originalItemIndex !== undefined) payload.originalItemIndex = originalItemIndex;
-      const res = await fetch(`/api/admin/pages/${slug}/content`, {
+      const res = await callApi(`/api/admin/pages/${slug}/content`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        auth: true,
+        body: payload,
       });
 
       if (res.ok) {
@@ -98,10 +99,10 @@ export default function PageContentPage() {
     if (!confirm("Delete this content?")) return;
 
     try {
-      const res = await fetch(`/api/admin/pages/${slug}/content`, {
+      const res = await callApi(`/api/admin/pages/${slug}/content`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sectionApiId, itemIndex }),
+        auth: true,
+        body: { sectionApiId, itemIndex },
       });
 
       if (res.ok) {
@@ -199,44 +200,35 @@ function SectionContentEditor({
   onDelete,
   saving,
 }) {
-    const [itemIndex, setItemIndex] = useState(0);
-    const [originalIndex, setOriginalIndex] = useState(0);
-    const [formValues, setFormValues] = useState(() => {
+  const [itemIndex, setItemIndex] = useState(0);
+  const [originalIndex, setOriginalIndex] = useState(0);
+  const [formValues, setFormValues] = useState(() => {
     const firstItem = content.find(c => c.itemIndex === 0);
 
     if (firstItem?.values) return firstItem.values;
 
     return section.fields.reduce((acc, field) => {
-        acc[field.name] = "";
-        return acc;
+      acc[field.name] = "";
+      return acc;
     }, {});
-    });
+  });
 
   const currentContent = content.find((c) => c.itemIndex === itemIndex);
 
-  // when the active content record changes, remember its original index
-  useEffect(() => {
-    if (currentContent) {
-      setOriginalIndex(currentContent.itemIndex);
-    } else {
-      setOriginalIndex(itemIndex);
-    }
-    // we intentionally do not include itemIndex in deps, so that manual edits
-    // to the index field do not overwrite the original value
-  }, [currentContent]);
+
 
   // Initialize form values on mount and when itemIndex or content changes
-//   useEffect(() => {
-//     if (currentContent?.values) {
-//       setFormValues(currentContent.values);
-//     } else {
-//       const initial = {};
-//       section.fields.forEach((field) => {
-//         initial[field.name] = currentContent?.values?.[field.name] || "";
-//       });
-//       setFormValues(initial);
-//     }
-//   }, [itemIndex, currentContent, section.fields]);
+  //   useEffect(() => {
+  //     if (currentContent?.values) {
+  //       setFormValues(currentContent.values);
+  //     } else {
+  //       const initial = {};
+  //       section.fields.forEach((field) => {
+  //         initial[field.name] = currentContent?.values?.[field.name] || "";
+  //       });
+  //       setFormValues(initial);
+  //     }
+  //   }, [itemIndex, currentContent, section.fields]);
 
 
 
@@ -283,40 +275,38 @@ function SectionContentEditor({
             {[...content]
               .sort((a, b) => a.itemIndex - b.itemIndex)
               .map((item) => (
-              <div key={item.itemIndex} className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setItemIndex(item.itemIndex);
-
-                    const existing = content.find(
+                <div key={item.itemIndex} className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setItemIndex(item.itemIndex); setOriginalIndex(item.itemIndex);
+                      const existing = content.find(
                         (c) => c.itemIndex === item.itemIndex
-                    );
+                      );
 
-                    const nextValues =
+                      const nextValues =
                         existing?.values ||
                         section.fields.reduce((acc, field) => {
-                        acc[field.name] = "";
-                        return acc;
+                          acc[field.name] = "";
+                          return acc;
                         }, {});
 
-                    setFormValues(nextValues);
-}}
-                  className={`px-3 py-1 rounded font-medium ${
-                    itemIndex === item.itemIndex
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  Item {item.itemIndex + 1}
-                </button>
-                <button
-                  onClick={() => onDelete(sectionApiId, item.itemIndex)}
-                  className="text-red-600 hover:text-red-700 text-sm font-medium"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
+                      setFormValues(nextValues);
+                    }}
+                    className={`px-3 py-1 rounded font-medium ${itemIndex === item.itemIndex
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                  >
+                    Item {item.itemIndex + 1}
+                  </button>
+                  <button
+                    onClick={() => onDelete(sectionApiId, item.itemIndex)}
+                    className="text-red-600 hover:text-red-700 text-sm font-medium"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
             <button
               onClick={handleAddItem}
               className="ml-auto px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium text-sm"

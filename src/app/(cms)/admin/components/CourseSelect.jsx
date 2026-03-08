@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { callApi } from "@/lib/apiClient";
 
 export default function CourseSelect({
   value,
@@ -12,8 +13,9 @@ export default function CourseSelect({
 
   useEffect(() => {
     const fetchCourses = async () => {
-      const res = await fetch("/api/admin/courses", {
+      const res = await callApi("/api/admin/courses", {
         cache: "no-store",
+        auth: true,
       });
       const data = await res.json();
       setCourses(data.filter((c) => c.isActive)); // Only show active courses

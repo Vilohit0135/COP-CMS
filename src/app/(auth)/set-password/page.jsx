@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { callApi } from "@/lib/apiClient"
 
 function SetPasswordInner() {
   const router = useRouter()
@@ -35,10 +36,9 @@ function SetPasswordInner() {
 
     setLoading(true)
     try {
-      const res = await fetch("/api/auth/set-password", {
+      const res = await callApi("/api/auth/set-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, token, password }),
+        body: { email, token, password },
       })
       const data = await res.json()
       if (!res.ok) {

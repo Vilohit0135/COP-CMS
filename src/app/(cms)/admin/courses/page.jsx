@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { callApi } from "@/lib/apiClient";
 import DegreeTypeSelect from "../components/DegreeTypeSelect";
 
 export default function CoursesPage() {
@@ -32,23 +33,31 @@ export default function CoursesPage() {
   /* ---------------------------------- */
   const fetchCourses = async () => {
     try {
-      const res = await fetch("/api/admin/courses", {
+      const res = await callApi("/api/admin/courses", {
         cache: "no-store",
+        auth: true,
       });
-      const data = await res.json();
-      setCourses(data);
+
+      if (res.ok) {
+        const data = await res.json();
+        setCourses(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Failed to fetch courses:", await res.text());
+        setCourses([]);
+      }
     } catch (err) {
       console.error("Error fetching courses", err);
+      setCourses([]);
     }
   };
 
-    useEffect(() => {
+  useEffect(() => {
     const loadData = async () => {
-        await fetchCourses();
+      await fetchCourses();
     };
 
     loadData();
-    }, []);
+  }, []);
 
   /* ---------------------------------- */
   /* Create */
@@ -68,10 +77,10 @@ export default function CoursesPage() {
 
     setLoading(true);
 
-    await fetch("/api/admin/courses", {
+    await callApi("/api/admin/courses", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
+      auth: true,
+      body: formData,
     });
 
     setFormData({
@@ -113,10 +122,10 @@ export default function CoursesPage() {
 
     setLoading(true);
 
-    await fetch(`/api/admin/courses/${id}`, {
+    await callApi(`/api/admin/courses/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
+      auth: true,
+      body: formData,
     });
 
     setEditingId(null);
@@ -131,8 +140,9 @@ export default function CoursesPage() {
     const confirmDelete = confirm("Delete this course?");
     if (!confirmDelete) return;
 
-    await fetch(`/api/admin/courses/${id}`, {
+    await callApi(`/api/admin/courses/${id}`, {
       method: "DELETE",
+      auth: true,
     });
 
     fetchCourses();
@@ -190,7 +200,7 @@ export default function CoursesPage() {
             required
           />
 
-        
+
 
           {/* Active Toggle */}
           <label className="flex items-center gap-2 cursor-pointer">
@@ -310,11 +320,10 @@ export default function CoursesPage() {
                       <span className="text-sm font-medium">Active</span>
                     </label>
                   ) : (
-                    <span className={`px-3 py-1 rounded-full text-sm ${
-                      course.isActive
+                    <span className={`px-3 py-1 rounded-full text-sm ${course.isActive
                         ? "bg-green-100 text-gray-900"
                         : "bg-gray-200 text-gray-800"
-                    }`}>
+                      }`}>
                       {course.isActive ? "Active" : "Inactive"}
                     </span>
                   )}

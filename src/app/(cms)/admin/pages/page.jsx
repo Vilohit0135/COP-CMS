@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { callApi } from "@/lib/apiClient";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -15,7 +16,7 @@ export default function PagesListPage() {
 
   const fetchPages = async () => {
     try {
-      const res = await fetch("/api/admin/pages");
+      const res = await callApi("/api/admin/pages", { auth: true });
       const data = await res.json();
       setPages(data);
       setLoading(false);

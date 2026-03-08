@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { callApi } from "@/lib/apiClient";
 import DegreeTypeSelect from "../components/DegreeTypeSelect";
 import CourseSelect from "../components/CourseSelect";
 import SpecializationSelect from "../components/SpecializationSelect";
@@ -48,13 +49,20 @@ export default function ProviderCoursesPage() {
   /* ---------------------------------- */
   const fetchProviderCourses = async () => {
     try {
-      const res = await fetch("/api/admin/provider-courses", {
+      const res = await callApi("/api/admin/provider-courses", {
         cache: "no-store",
+        auth: true,
       });
-      const data = await res.json();
-      setProviderCourses(data);
+      if (res.ok) {
+        const data = await res.json();
+        setProviderCourses(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Failed to fetch provider courses:", await res.text());
+        setProviderCourses([]);
+      }
     } catch (err) {
       console.error("Error fetching provider courses", err);
+      setProviderCourses([]);
     }
   };
 
@@ -98,10 +106,10 @@ export default function ProviderCoursesPage() {
 
     console.log("Creating provider-course payload:", payload);
 
-    await fetch("/api/admin/provider-courses", {
+    await callApi("/api/admin/provider-courses", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      auth: true,
+      body: formData,
     });
 
     setFormData({
@@ -157,6 +165,7 @@ export default function ProviderCoursesPage() {
   };
 
   const handleUpdate = async (id) => {
+    // update request
     if (!formData.title.trim()) {
       alert("Title is required!");
       return;
@@ -183,10 +192,10 @@ export default function ProviderCoursesPage() {
 
     console.log("Updating provider-course id", id, "payload:", payload);
 
-    await fetch(`/api/admin/provider-courses/${id}`, {
+    await callApi(`/api/admin/provider-courses/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      auth: true,
+      body: formData,
     });
 
     setEditingId(null);
@@ -201,8 +210,9 @@ export default function ProviderCoursesPage() {
     const confirmDelete = confirm("Delete this provider course?");
     if (!confirmDelete) return;
 
-    await fetch(`/api/admin/provider-courses/${id}`, {
+    await callApi(`/api/admin/provider-courses/${id}`, {
       method: "DELETE",
+      auth: true,
     });
 
     fetchProviderCourses();
@@ -443,10 +453,10 @@ export default function ProviderCoursesPage() {
               <th className="p-3">Title</th>
               <th className="p-3">Degree Type</th>
               <th className="p-3">Course</th>
-                <th className="p-3">Specialization</th>
-                  <th className="p-3">Weekly Effort</th>
-                  <th className="p-3">Difficulty</th>
-                  <th className="p-3">Fees</th>
+              <th className="p-3">Specialization</th>
+              <th className="p-3">Weekly Effort</th>
+              <th className="p-3">Difficulty</th>
+              <th className="p-3">Fees</th>
               <th className="p-3">Disc. Fees</th>
               <th className="p-3">Status</th>
               <th className="p-3">Actions</th>
@@ -621,11 +631,10 @@ export default function ProviderCoursesPage() {
                       <span className="text-sm font-medium">Active</span>
                     </label>
                   ) : (
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      item.isActive
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${item.isActive
                         ? "bg-green-100 text-gray-900"
                         : "bg-gray-200 text-gray-800"
-                    }`}>
+                      }`}>
                       {item.isActive ? "Active" : "Inactive"}
                     </span>
                   )}

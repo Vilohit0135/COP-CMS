@@ -1,5 +1,10 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
+> **Note:** the app now talks to a separate backend API (see `../cop-backend`).
+> All CMS/admin network requests are forwarded to `NEXT_PUBLIC_API_URL`.
+> Make sure to add `NEXT_PUBLIC_API_URL=http://localhost:5000` (or your
+> production URL) in `.env.local` before running the frontend.
+
 ## Getting Started
 
 First, run the development server:

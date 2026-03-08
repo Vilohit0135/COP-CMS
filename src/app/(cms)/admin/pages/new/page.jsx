@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { callApi } from "@/lib/apiClient";
 
 export default function CreatePagePage() {
   const [formData, setFormData] = useState({
@@ -51,10 +52,10 @@ export default function CreatePagePage() {
     }
 
     try {
-      const res = await fetch("/api/admin/pages", {
+      const res = await callApi("/api/admin/pages", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        auth: true,
+        body: formData,
       });
 
       const data = await res.json();

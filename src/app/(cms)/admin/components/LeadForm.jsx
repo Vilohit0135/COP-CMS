@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { callApi } from "@/lib/apiClient";
 
 export default function LeadForm() {
   const [formData, setFormData] = useState({
@@ -27,10 +28,9 @@ export default function LeadForm() {
     setSuccess(false);
 
     try {
-      const res = await fetch("/api/leads", {
+      const res = await callApi("/api/public/leads", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: formData,
       });
 
       const data = await res.json();

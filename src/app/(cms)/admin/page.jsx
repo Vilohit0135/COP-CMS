@@ -6,7 +6,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { BookOpen, Building2, MessageSquare, Star } from "lucide-react";
+import { BookOpen, Building2, MessageSquare, Star, GraduationCap, Briefcase, Layers } from "lucide-react";
+import { callApi } from "@/lib/apiClient";
 
 // ─── Stat Card ────────────────────────────────────────────────────────
 
@@ -18,11 +19,10 @@ function StatCard({ title, value, icon: Icon, trend }) {
           <Icon size={18} />
         </div>
         {trend !== undefined && (
-          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-            trend >= 0
-              ? "bg-emerald-50 text-emerald-600"
-              : "bg-red-50 text-red-500"
-          }`}>
+          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${trend >= 0
+            ? "bg-emerald-50 text-emerald-600"
+            : "bg-red-50 text-red-500"
+            }`}>
             {trend >= 0 ? "↑" : "↓"} {Math.abs(trend)}%
           </span>
         )}
@@ -75,7 +75,15 @@ function ChartPanel({ title, subtitle, children, empty }) {
 // ─── Main Dashboard ───────────────────────────────────────────────────
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ courses: 0, providers: 0, leads: 0, reviews: 0 });
+  const [stats, setStats] = useState({
+    courses: 0,
+    providers: 0,
+    leads: 0,
+    reviews: 0,
+    degreeTypes: 0,
+    specializations: 0,
+    providerCourses: 0
+  });
   const [reviewsByRating, setReviewsByRating] = useState([]);
   const [leadsBySource, setLeadsBySource] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,9 +92,9 @@ export default function AdminDashboard() {
     const fetchData = async () => {
       try {
         const [statsRes, reviewsRes, leadsRes] = await Promise.all([
-          fetch("/api/admin/dashboard/stats"),
-          fetch("/api/admin/dashboard/reviews-by-rating"),
-          fetch("/api/admin/dashboard/leads-by-source"),
+          callApi("/api/admin/dashboard/stats", { auth: true }),
+          callApi("/api/admin/dashboard/reviews-by-rating", { auth: true }),
+          callApi("/api/admin/dashboard/leads-by-source", { auth: true }),
         ]);
         if (statsRes.ok) setStats(await statsRes.json());
         if (reviewsRes.ok) setReviewsByRating(await reviewsRes.json());
@@ -110,6 +118,9 @@ export default function AdminDashboard() {
 
   const statCards = [
     { title: "Total Courses", value: stats.courses, icon: BookOpen },
+    { title: "Degree Types", value: stats.degreeTypes, icon: GraduationCap },
+    { title: "Specializations", value: stats.specializations, icon: Layers },
+    { title: "Provider Courses", value: stats.providerCourses, icon: Briefcase },
     { title: "Total Providers", value: stats.providers, icon: Building2 },
     { title: "Total Leads", value: stats.leads, icon: MessageSquare },
     { title: "Total Reviews", value: stats.reviews, icon: Star },
@@ -128,7 +139,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* ── Stat Cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
           {statCards.map((card) => (
             <StatCard key={card.title} {...card} />
           ))}
